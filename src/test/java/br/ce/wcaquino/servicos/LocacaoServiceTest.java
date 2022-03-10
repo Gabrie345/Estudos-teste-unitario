@@ -1,34 +1,102 @@
 package br.ce.wcaquino.servicos;
 
-import static org.hamcrest.CoreMatchers.is;
 
+
+import static br.ce.wcaquino.utils.DataUtils.isMesmaData;
+import static br.ce.wcaquino.utils.DataUtils.obterDataComDiferencaDias;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
+import java.util.Date;
+
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
+import org.junit.rules.ExpectedException;
 
 import br.ce.wcaquino.entidades.Filme;
 import br.ce.wcaquino.entidades.Locacao;
 import br.ce.wcaquino.entidades.Usuario;
+import br.ce.wcaquino.exceptions.FilmeSemEstoqueException;
+import br.ce.wcaquino.exceptions.LocadoraException;
 
 public class LocacaoServiceTest {
 	
+	private LocacaoService service;
+
 	@Rule
-	private ErrorCollector error = new ErrorCollector();
+	public ErrorCollector error = new ErrorCollector();
+	
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
+	// o Junit zera todas as variaveis depois de cada teste.
+	
+	//@BeforeClass e @AfterClass faz antes de todo mundo com o class
+	@Before
+	public void setup() {
+		service = new LocacaoService();	
+	}
+	
+	@After 
+	public void tearDown() {
+		
+	}
 	
 	@Test
-	public void testAlugaFilme() {
-			LocacaoService service = new LocacaoService();
-			Usuario usuario = new Usuario("usuario1");
-			Filme filme = new Filme("filme", 2 , 5.0);
+	public void testeLocacao() throws Exception {
+		//cenario
+		Usuario usuario = new Usuario("Usuario 1");
+		Filme filme = new Filme("Filme 1", 1, 5.0);
+		
+		//acao
+		Locacao locacao = service.alugarFilme(usuario, filme);
 			
-			Locacao alugarFilme = service.alugarFilme(usuario, filme);
-			
-			Assert.assertThat(alugarFilme.getValor(), is((5.0)));
-			//Assert.assertThat(alugarFilme.getValor(), is(CoreMatchers.not(6.0)));
-			
-			error.checkThat(alugarFilme.getValor(), is((5.0)));
-			
-;		}
+		//verificacao
+		error.checkThat(locacao.getValor(), is(equalTo(5.0)));
+		error.checkThat(isMesmaData(locacao.getDataLocacao(), new Date()), is(true));
+		error.checkThat(isMesmaData(locacao.getDataRetorno(), obterDataComDiferencaDias(1)), is(true));
+	}
+	
+	@Test(expected = FilmeSemEstoqueException.class)
+	public void testLocacao_filmeSemEstoque() throws Exception{
+		//cenario
+		Usuario usuario = new Usuario("Usuario 1");
+		Filme filme = new Filme("Filme 2", 0, 4.0);
+		
+		//acao
+		service.alugarFilme(usuario, filme);
+	}
+	
+	@Test
+	public void testLocacao_usuarioVazio() throws FilmeSemEstoqueException{
+		//cenario
+		Filme filme = new Filme("Filme 2", 1, 4.0);
+		
+		//acao
+		try {
+			service.alugarFilme(null, filme);
+			Assert.fail();
+		} catch (LocadoraException e) {
+			assertThat(e.getMessage(), is("Usuario vazio"));
+		}
+	}
+	
 
+	@Test
+	public void testLocacao_FilmeVazio() throws FilmeSemEstoqueException, LocadoraException{
+		//cenario
+		Usuario usuario = new Usuario("Usuario 1");
+		
+		exception.expect(LocadoraException.class);
+		exception.expectMessage("Filme vazio");
+		
+		//acao
+		service.alugarFilme(usuario, null);
+	}
 }
